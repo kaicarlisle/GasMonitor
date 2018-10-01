@@ -28,6 +28,7 @@ public class SNSTopicReceiver {
 		this.sqs = AmazonSQSClientBuilder.standard().withRegion(Regions.EU_WEST_1).withCredentials(credentialsProvider).build();
 	
 		this.myQueueUrl = this.sqs.createQueue(new CreateQueueRequest(UUID.randomUUID().toString())).getQueueUrl();
+
 		
 		//subscribe the sqs to the sns
 		Topics.subscribeQueue(this.sns, this.sqs, this.ARN, this.myQueueUrl);

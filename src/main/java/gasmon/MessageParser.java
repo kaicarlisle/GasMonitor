@@ -8,9 +8,9 @@ public class MessageParser extends JSONParser {
 		super();
 	}
 	
-	public MessageResponse.Message parse(String message) throws JsonSyntaxException{
+	public MessageResponse parse(String message) throws JsonSyntaxException{
 		MessageResponse messageResponse = gson.fromJson(message, MessageResponse.class);
-		MessageResponse.Message messageBody = gson.fromJson(messageResponse.getMessage(), MessageResponse.Message.class);
-		return messageBody;
+		messageResponse.messageBody = gson.fromJson(messageResponse.getMessage(), MessageResponse.Message.class);
+		return messageResponse;
 	}
 }

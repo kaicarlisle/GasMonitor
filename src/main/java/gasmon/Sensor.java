@@ -16,10 +16,10 @@ public class Sensor {
 	private double x;
 	private double y;
 	private String id;
-	private ArrayList<Message> readings;
+	private ArrayList<MessageResponse> readings;
 	
 	public Sensor() throws IOException {
-		this.readings = new ArrayList<Message>();
+		this.readings = new ArrayList<MessageResponse>();
 		File file = new File("src/main/resources/dictionary.txt");
 		BufferedReader reader = new BufferedReader(new FileReader(file));
 		Random r = new Random();
@@ -50,8 +50,8 @@ public class Sensor {
 		return this.id;
 	}
 	
-	public void addReading(Message message) {
-		this.readings.add(message);
+	public void addReading(MessageResponse reading) {
+		this.readings.add(reading);
 	}
 
 }
