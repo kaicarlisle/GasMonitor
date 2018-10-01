@@ -40,7 +40,6 @@ public class Main {
 		
 		//receive messages from sqs server
 		for (int i = 0; i < 10; i++) {
-			parsedMessages.clear();
 			//make less frequent requests getting more readings at once
 			Thread.sleep(5000);
 			List<String> messages = topicReceiver.getNextMessages(10);
@@ -55,21 +54,23 @@ public class Main {
 			//  only include distinct readings (based on eventID)
 			Date now = new Date();
 			Timestamp nowTimestamp = new Timestamp(now.getTime() - 300000);
-			parsedMessageStream.filter(message -> (message.getTimestampFromLong().after(nowTimestamp)))
-							   .distinct()
-							   .forEach(System.out::println);
-//							   .collect(Collectors.toList());
+			parsedMessages = parsedMessageStream.filter(message -> (message.getTimestampFromLong().after(nowTimestamp)))
+							   					.distinct()
+//							   					.forEach(System.out::println);
+							   					.collect(Collectors.toList());
 			
-			
-			
-
 			//add each MessageResponse.Message object to the relevant sensor object
-//			for (Sensor s : sensors) {
-//				if (s.getID().equals(parsedMessage.locationId)) {
-//					s.addReading(parsedMessage);
-//					System.out.println(parsedMessage.value + " added to sensor " + s.humanReadableName);
-//				}
-//			}			
+			for (MessageResponse.Message m : parsedMessages) {
+				for (Sensor s : sensors) {
+					if (s.getID().equals(m.locationId)) {
+						s.addReading(m);
+						System.out.println(m.value + " added to sensor " + s.humanReadableName + " at " + m.getTimestampFromLong());
+					}
+				}	
+			}
+			
+			//TODO get averages over all the readings in the sensor
+			//TODO make each sensor a similar stream object that filters based on time, as otherwise it will store every past reading
 		}
 		topicReceiver.deleteQueue();
 	}
