@@ -25,11 +25,11 @@ public class GetLocationsJSONFromAWS {
 	private byte[] read_buf;
     private int read_len;
 	
-	public GetLocationsJSONFromAWS(String location, ProfileCredentialsProvider credentialsProvider) {
+	public GetLocationsJSONFromAWS(ProfileCredentialsProvider credentialsProvider) {
 		this.credentialsProvider = credentialsProvider;
 		this.bucketName = "eventprocessing-rfm-sept-2018-locationss3bucket-186b0uzd6cf01";
 		this.keyName = "locations.json";
-		this.file = new File(location + this.keyName);
+		this.file = new File("src/main/resources/" + this.keyName);
 		
 		if (!this.file.exists()) {
 			getLocations();

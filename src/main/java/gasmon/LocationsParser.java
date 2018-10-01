@@ -9,15 +9,27 @@ import java.io.IOException;
 public class LocationsParser extends JSONParser {
 	private BufferedReader reader;
 	private String line;
+	private String jsonString;
 	
-	public LocationsParser(File file) throws FileNotFoundException, IOException {
+	public LocationsParser(File file) {
 		super();
-		this.reader = new BufferedReader(new FileReader(file));
+		this.jsonString = "";
+		try {
+			this.reader = new BufferedReader(new FileReader(file));
+		} catch (FileNotFoundException e) {
+			System.out.println("locations.json file not found");
+			e.printStackTrace();
+		}
 	}
 	
-	public Sensor[] parse() throws IOException {
-		while ((this.line = this.reader.readLine()) != null) {
-			this.jsonString += this.line;
+	public Sensor[] parse() {
+		try {
+			while ((this.line = this.reader.readLine()) != null) {
+				this.jsonString += this.line;
+			}
+		} catch (IOException e) {
+			System.out.println("Error reading locations.json");
+			e.printStackTrace();
 		}
 		return gson.fromJson(this.jsonString, Sensor[].class);
 	}
