@@ -15,6 +15,11 @@ import gasmon.MessageResponse.Message;
 
 public class Main {
 	
+	final static int NUMBER_OF_SCANS = 200;
+	final static int THREAD_SLEEP_BETWEEN_REQUESTS = 500;
+	final static int GRANULARITY_OF_GUESS = 5;
+	final static int NUMBER_OF_MESSAGES_PER_REQUEST = 1;
+	
 	public static void main(String[] args) throws InterruptedException {
 		ProfileCredentialsProvider credentialsProvider = new ProfileCredentialsProvider(".aws/credentials", "default");
 		Sensor[] sensors = new Sensor[0];
@@ -31,20 +36,19 @@ public class Main {
 		SNSTopicReceiver topicReceiver = new SNSTopicReceiver(credentialsProvider);
 		
 		ArrayList<SensorPoint> readings = getReadingsInGraphFormat(sensors);
-		ArrayList<SensorPoint> estimate = matchConeToFindSource(readings, 10);
+		ArrayList<SensorPoint> estimate = matchConeToFindSource(readings);
 		GraphRenderer graphRenderer = new GraphRenderer(readings, estimate);
 		
 		//request and handle messages from sqs, associating readings with known scanners
-		int maxNumber = 20;
-		for (int i = 0; i < maxNumber; i++) {
+		for (int i = 0; i < NUMBER_OF_SCANS; i++) {
 			List<Message> messages = receiveNextMessages(topicReceiver, sensors, parsedMessages);
 			addReadingsToSensors(sensors, messages);
 //			writeAllReadingsToCSV(sensors);
 			readings = getReadingsInGraphFormat(sensors);
-			estimate = matchConeToFindSource(readings, 10);
+			estimate = matchConeToFindSource(readings);
 			graphRenderer.updateValues(readings, estimate);
 			System.out.println(getMeanEstimate(estimate).getPosAsString());
-			System.out.println("Scanning " + ((i+1)*100/maxNumber) + "%");
+			System.out.println("Scanning " + ((i+1)*100/NUMBER_OF_SCANS) + "%");
 		}
 		topicReceiver.deleteQueue();
 		System.out.println("Program terminated succesfully");
@@ -55,8 +59,8 @@ public class Main {
 		Stream<MessageResponse.Message> parsedMessageStream;
 		
 		//make less frequent requests getting more readings at once
-		Thread.sleep(1000);
-		List<String> messages = topicReceiver.getNextMessages(4);
+		Thread.sleep(THREAD_SLEEP_BETWEEN_REQUESTS);
+		List<String> messages = topicReceiver.getNextMessages(NUMBER_OF_MESSAGES_PER_REQUEST);
 		
 		//parse messages into MessageResponse objects
 		for (String message : messages) {
@@ -121,7 +125,7 @@ public class Main {
 		return readings;
 	}
 	
-	private static ArrayList<SensorPoint> matchConeToFindSource(ArrayList<SensorPoint> readings, int granularity) {
+	private static ArrayList<SensorPoint> matchConeToFindSource(ArrayList<SensorPoint> readings) {
 		ArrayList<SensorPoint> validGuesses = new ArrayList<SensorPoint>();
 		SensorPoint guess = new SensorPoint(0, 0, 0);
 		
@@ -132,8 +136,8 @@ public class Main {
 			}
 		}
 		
-		for (int i = 0; i < 1000; i += granularity) {
-			for (int j = 0; j < 1000; j += granularity) {
+		for (int i = 0; i < 1000; i += GRANULARITY_OF_GUESS) {
+			for (int j = 0; j < 1000; j += GRANULARITY_OF_GUESS) {
 				guess.x = i;
 				guess.y = j;
 				if (isValidGuess(guess, sortedByValues)) {

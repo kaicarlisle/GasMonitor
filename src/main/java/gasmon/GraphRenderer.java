@@ -61,7 +61,7 @@ public class GraphRenderer extends JPanel {
 		for (SensorPoint s : estimate) {
 			int x1 = (int) (s.x * getWidth() / MAX_POINT_POS_X);
 			int y1 = (int) (s.y * getHeight() / MAX_POINT_POS_Y);
-			g2.drawRect(x1 - 5, y1 - 5, 10, 10);
+			g2.drawRect(x1 - 2, y1 - 2, 4, 4);
 		}
 	}
 
