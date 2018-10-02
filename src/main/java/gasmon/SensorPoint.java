@@ -8,6 +8,7 @@ public class SensorPoint {
 	public int y;
 	public int w;
 	public Color colour;
+	public Sensor relatedSensor;
 	
 	public double value;
 	public static double MAX_READING;
@@ -19,6 +20,16 @@ public class SensorPoint {
 		
 		this.w = Math.toIntExact(Math.round(value * 10));
 
+	}
+	
+	@Override
+	public boolean equals(Object o) {
+		if (o instanceof SensorPoint) {
+			SensorPoint b = (SensorPoint) o;
+			return (this.relatedSensor.equals(b.relatedSensor));
+		} else {
+			return false;
+		}
 	}
 	
 	public void setColour() {

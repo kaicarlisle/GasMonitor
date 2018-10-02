@@ -4,8 +4,8 @@ import java.io.File;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -31,16 +31,19 @@ public class Main {
 		SNSTopicReceiver topicReceiver = new SNSTopicReceiver(credentialsProvider);
 		
 		ArrayList<SensorPoint> readings = getReadingsInGraphFormat(sensors);
-		GraphRenderer graphRenderer = new GraphRenderer(readings);
+		ArrayList<SensorPoint> estimate = matchConeToFindSource(readings, 10);
+		GraphRenderer graphRenderer = new GraphRenderer(readings, estimate);
 		
 		//request and handle messages from sqs, associating readings with known scanners
-		int maxNumber = 5;
+		int maxNumber = 20;
 		for (int i = 0; i < maxNumber; i++) {
 			List<Message> messages = receiveNextMessages(topicReceiver, sensors, parsedMessages);
 			addReadingsToSensors(sensors, messages);
 //			writeAllReadingsToCSV(sensors);
 			readings = getReadingsInGraphFormat(sensors);
-			graphRenderer.updateValues(readings);
+			estimate = matchConeToFindSource(readings, 10);
+			graphRenderer.updateValues(readings, estimate);
+			System.out.println(getMeanEstimate(estimate).getPosAsString());
 			System.out.println("Scanning " + ((i+1)*100/maxNumber) + "%");
 		}
 		topicReceiver.deleteQueue();
@@ -52,8 +55,8 @@ public class Main {
 		Stream<MessageResponse.Message> parsedMessageStream;
 		
 		//make less frequent requests getting more readings at once
-		Thread.sleep(5000);
-		List<String> messages = topicReceiver.getNextMessages(10);
+		Thread.sleep(1000);
+		List<String> messages = topicReceiver.getNextMessages(4);
 		
 		//parse messages into MessageResponse objects
 		for (String message : messages) {
@@ -108,6 +111,7 @@ public class Main {
 			average = s.getAverage();
 			max = average > max ? average : max;
 			SensorPoint point = new SensorPoint(s.x, s.y, average);
+			point.relatedSensor = s;
 			readings.add(point);
 		}
 		SensorPoint.MAX_READING = max;
@@ -117,7 +121,60 @@ public class Main {
 		return readings;
 	}
 	
-	private SensorPoint triangulateSource(ArrayList<SensorPoint> readings) {
-		return new SensorPoint(1,2,3);
+	private static ArrayList<SensorPoint> matchConeToFindSource(ArrayList<SensorPoint> readings, int granularity) {
+		ArrayList<SensorPoint> validGuesses = new ArrayList<SensorPoint>();
+		SensorPoint guess = new SensorPoint(0, 0, 0);
+		
+		TreeMap<Double, SensorPoint> sortedByValues = new TreeMap<Double, SensorPoint>();
+		for (SensorPoint s : readings) {
+			if (!Double.isNaN(s.value)) {
+				sortedByValues.put(s.value, s);	
+			}
+		}
+		
+		for (int i = 0; i < 1000; i += granularity) {
+			for (int j = 0; j < 1000; j += granularity) {
+				guess.x = i;
+				guess.y = j;
+				if (isValidGuess(guess, sortedByValues)) {
+					validGuesses.add(new SensorPoint(i, j, 0));
+				}
+			}
+		}
+				
+		return validGuesses;
+	}
+	
+	private static boolean isValidGuess(SensorPoint guess, TreeMap<Double, SensorPoint> sortedByValues) {
+		TreeMap<Double, SensorPoint> distances = new TreeMap<Double, SensorPoint>();
+		
+		for (SensorPoint s : sortedByValues.values()) {
+			Double distance = Math.pow(s.x - guess.x, 2) + Math.pow(s.y - guess.y, 2);
+			distances.put(distance, s);
+		}
+		
+		for (Double d : sortedByValues.descendingKeySet()) {
+			SensorPoint highestValue = sortedByValues.get(d);
+			SensorPoint lowestDistance = distances.get(distances.firstKey());
+			if (!lowestDistance.equals(highestValue)) {
+				return false;
+			}
+			distances.remove(distances.firstKey());
+		}
+		
+		return true;
+	}
+	
+	private static SensorPoint getMeanEstimate(ArrayList<SensorPoint> validGuesses) {
+		int mX = 0;
+		int mY = 0;
+		for (SensorPoint s : validGuesses) {
+			mX += s.x;
+			mY += s.y;
+		}
+		mX /= validGuesses.size();
+		mY /= validGuesses.size();
+		
+		return new SensorPoint(mX, mY, 0);
 	}
 }

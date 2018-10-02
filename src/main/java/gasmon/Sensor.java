@@ -17,6 +17,16 @@ public class Sensor {
 		this.humanReadableName = new ReadableUUID(3).UUID;
 	}
 	
+	@Override
+	public boolean equals(Object o) {
+		if (o instanceof Sensor) {
+			Sensor b = (Sensor) o;
+			return (this.id.equals(b.id));
+		} else {
+			return false;
+		}
+	}
+	
 	public void setX(double x) {
 		this.x = x;
 	}
