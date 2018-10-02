@@ -2,7 +2,6 @@ package gasmon;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.regions.Regions;
@@ -27,7 +26,7 @@ public class SNSTopicReceiver {
 		this.sns = AmazonSNSClientBuilder.standard().withRegion(Regions.EU_WEST_1).withCredentials(credentialsProvider).build();
 		this.sqs = AmazonSQSClientBuilder.standard().withRegion(Regions.EU_WEST_1).withCredentials(credentialsProvider).build();
 	
-		this.myQueueUrl = this.sqs.createQueue(new CreateQueueRequest(UUID.randomUUID().toString())).getQueueUrl();
+		this.myQueueUrl = this.sqs.createQueue(new CreateQueueRequest(new ReadableUUID(3).UUID)).getQueueUrl();
 
 		
 		//subscribe the sqs to the sns

@@ -4,8 +4,8 @@ import java.io.File;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -27,51 +27,97 @@ public class Main {
 		LocationsParser locationsParser = new LocationsParser(locationsJSON);
 		sensors = locationsParser.parse();
 		
-
-		//request and handle messages from sqs, associating readings with known scanners
-		receiveMessages(credentialsProvider, sensors);
-	}
-	
-	private static void receiveMessages(ProfileCredentialsProvider credentialsProvider, Sensor[] sensors) throws InterruptedException {
-		MessageParser messageParser = new MessageParser();
-		SNSTopicReceiver topicReceiver = new SNSTopicReceiver(credentialsProvider);
 		List<MessageResponse.Message> parsedMessages = new ArrayList<MessageResponse.Message>();
-		Stream<MessageResponse.Message> parsedMessageStream;
+		SNSTopicReceiver topicReceiver = new SNSTopicReceiver(credentialsProvider);
 		
-		//receive messages from sqs server
-		for (int i = 0; i < 10; i++) {
-			//make less frequent requests getting more readings at once
-			Thread.sleep(5000);
-			List<String> messages = topicReceiver.getNextMessages(10);
-			
-			for (String message : messages) {
-				//parse messages into MessageResponse objects
-				parsedMessages.add(messageParser.parse(message).messageBody);
-			}
-			parsedMessageStream = parsedMessages.stream();
-			//filter stream to:
-			//	only include messages from the past 5 minutes
-			//  only include distinct readings (based on eventID)
-			Date now = new Date();
-			Timestamp nowTimestamp = new Timestamp(now.getTime() - 300000);
-			parsedMessages = parsedMessageStream.filter(message -> (message.getTimestampFromLong().after(nowTimestamp)))
-							   					.distinct()
-//							   					.forEach(System.out::println);
-							   					.collect(Collectors.toList());
-			
-			//add each MessageResponse.Message object to the relevant sensor object
-			for (MessageResponse.Message m : parsedMessages) {
-				for (Sensor s : sensors) {
-					if (s.getID().equals(m.locationId)) {
-						s.addReading(m);
-						System.out.println(m.value + " added to sensor " + s.humanReadableName + " at " + m.getTimestampFromLong());
-					}
-				}	
-			}
-			
-			//TODO get averages over all the readings in the sensor
-			//TODO make each sensor a similar stream object that filters based on time, as otherwise it will store every past reading
+		ArrayList<SensorPoint> readings = getReadingsInGraphFormat(sensors);
+		GraphRenderer graphRenderer = new GraphRenderer(readings);
+		
+		//request and handle messages from sqs, associating readings with known scanners
+		int maxNumber = 5;
+		for (int i = 0; i < maxNumber; i++) {
+			List<Message> messages = receiveNextMessages(topicReceiver, sensors, parsedMessages);
+			addReadingsToSensors(sensors, messages);
+//			writeAllReadingsToCSV(sensors);
+			readings = getReadingsInGraphFormat(sensors);
+			graphRenderer.updateValues(readings);
+			System.out.println("Scanning " + ((i+1)*100/maxNumber) + "%");
 		}
 		topicReceiver.deleteQueue();
+		System.out.println("Program terminated succesfully");
+	}
+	
+	private static List<Message> receiveNextMessages(SNSTopicReceiver topicReceiver, Sensor[] sensors, List<MessageResponse.Message> parsedMessages) throws InterruptedException {
+		MessageParser messageParser = new MessageParser();
+		Stream<MessageResponse.Message> parsedMessageStream;
+		
+		//make less frequent requests getting more readings at once
+		Thread.sleep(5000);
+		List<String> messages = topicReceiver.getNextMessages(10);
+		
+		//parse messages into MessageResponse objects
+		for (String message : messages) {
+			parsedMessages.add(messageParser.parse(message).messageBody);
+		}
+		
+		parsedMessageStream = parsedMessages.stream();
+		//filter stream to:
+		//	only include messages from the past 5 minutes
+		//  only include distinct readings (based on eventID)
+		Date now = new Date();
+		Timestamp nowTimestamp = new Timestamp(now.getTime() - 300000);
+		parsedMessages = parsedMessageStream.filter(message -> (message.getTimestampFromLong().after(nowTimestamp)))
+						   					.distinct()
+						   					.collect(Collectors.toList());
+		
+		return parsedMessages;
+	}
+	
+	private static void addReadingsToSensors(Sensor[] sensors, List<Message> messages) {
+		//add each MessageResponse.Message object to the relevant sensor object
+		for (Sensor s : sensors) {
+			s.clearReadings();
+			for (MessageResponse.Message m : messages) {
+				if (s.getID().equals(m.locationId)) {
+					s.addReading(m);
+				}
+			}
+		}
+	}
+	
+	private static void writeAllReadingsToCSV(Sensor[] sensors) {
+		for (Sensor s : sensors) {
+			File file = new File("src/main/resources/readings/"+s.humanReadableName+".csv");
+			String[] header = {"Timestamps", "Readings"};
+			String[] position = {String.valueOf(s.x), String.valueOf(s.y)};
+			CsvWriter writer = new CsvWriter(file, position);
+			writer.writeNextLine(header);
+			for (MessageResponse.Message m : s.getReadings()) {
+				String[] line = {String.valueOf(m.getTimestampFromLong()), String.valueOf(m.value)};
+				writer.writeNextLine(line);
+			}
+			writer.closeWriter();
+		}
+	}
+	
+	private static ArrayList<SensorPoint> getReadingsInGraphFormat(Sensor[] sensors) {
+		ArrayList<SensorPoint> readings = new ArrayList<SensorPoint>();
+		double max = 0;
+		double average;
+		for (Sensor s : sensors) {
+			average = s.getAverage();
+			max = average > max ? average : max;
+			SensorPoint point = new SensorPoint(s.x, s.y, average);
+			readings.add(point);
+		}
+		SensorPoint.MAX_READING = max;
+		for (SensorPoint s : readings) {
+			s.setColour();
+		}
+		return readings;
+	}
+	
+	private SensorPoint triangulateSource(ArrayList<SensorPoint> readings) {
+		return new SensorPoint(1,2,3);
 	}
 }
