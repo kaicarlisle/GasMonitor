@@ -15,10 +15,10 @@ import gasmon.MessageResponse.Message;
 
 public class Main {
 	
-	final static int NUMBER_OF_SCANS = 200;
+	final static int NUMBER_OF_SCANS = 100;
 	final static int THREAD_SLEEP_BETWEEN_REQUESTS = 500;
 	final static int GRANULARITY_OF_GUESS = 5;
-	final static int NUMBER_OF_MESSAGES_PER_REQUEST = 1;
+	final static int NUMBER_OF_MESSAGES_PER_REQUEST = 10; //max = 10
 	
 	public static void main(String[] args) throws InterruptedException {
 		ProfileCredentialsProvider credentialsProvider = new ProfileCredentialsProvider(".aws/credentials", "default");
@@ -37,7 +37,8 @@ public class Main {
 		
 		ArrayList<SensorPoint> readings = getReadingsInGraphFormat(sensors);
 		ArrayList<SensorPoint> estimates = setupGuesses();
-		GraphRenderer graphRenderer = new GraphRenderer(readings, estimates);
+		SensorPoint meanEstimate = getMeanEstimate(estimates);
+		GraphRenderer graphRenderer = new GraphRenderer(readings, estimates, meanEstimate);
 		
 		//request and handle messages from sqs, associating readings with known scanners
 		for (int i = 0; i < NUMBER_OF_SCANS; i++) {
@@ -46,8 +47,8 @@ public class Main {
 //			writeAllReadingsToCSV(sensors);
 			readings = getReadingsInGraphFormat(sensors);
 			estimates = matchConeToFindSource(readings, estimates);
-			graphRenderer.updateValues(readings, estimates);
-			System.out.println(getMeanEstimate(estimates).getPosAsString());
+			meanEstimate = getMeanEstimate(estimates);
+			graphRenderer.updateValues(readings, estimates, meanEstimate);
 			System.out.println("Scanning " + ((i+1)*100/NUMBER_OF_SCANS) + "%");
 		}
 		topicReceiver.deleteQueue();

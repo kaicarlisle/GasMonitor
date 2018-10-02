@@ -20,12 +20,14 @@ public class GraphRenderer extends JPanel {
 	private static final int MAX_POINT_POS_Y = 1000;
 	private ArrayList<SensorPoint> readings;
 	private ArrayList<SensorPoint> estimate;
+	private SensorPoint meanEstimate;
 	
 	private JFrame frame;
 
-	public GraphRenderer(ArrayList<SensorPoint> readings, ArrayList<SensorPoint> estimate) {
+	public GraphRenderer(ArrayList<SensorPoint> readings, ArrayList<SensorPoint> estimate, SensorPoint meanEstimate) {
 		this.readings = readings;
 		this.estimate = estimate;
+		this.meanEstimate = meanEstimate;
 		this.frame = new JFrame("Gas Monitor");
 		this.frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		this.frame.getContentPane().add(this);
@@ -34,9 +36,10 @@ public class GraphRenderer extends JPanel {
 		this.frame.setVisible(true);
 	}
 
-	public void updateValues(ArrayList<SensorPoint> readings, ArrayList<SensorPoint> estimate) {
+	public void updateValues(ArrayList<SensorPoint> readings, ArrayList<SensorPoint> estimate, SensorPoint meanEstimate) {
 		this.readings = readings;
 		this.estimate = estimate;
+		this.meanEstimate = meanEstimate;
 		this.frame.repaint();
 	}
 
@@ -63,6 +66,11 @@ public class GraphRenderer extends JPanel {
 			int y1 = (int) (s.y * getHeight() / MAX_POINT_POS_Y);
 			g2.drawRect(x1 - 2, y1 - 2, 4, 4);
 		}
+		
+		g2.setColor(Color.BLACK);
+		int x1 = (int) (this.meanEstimate.x * getWidth() / MAX_POINT_POS_X);
+		int y1 = (int) (this.meanEstimate.y * getHeight() / MAX_POINT_POS_Y);
+		g2.drawString(this.meanEstimate.getPosAsString(), x1-25, y1);
 	}
 
 	@Override
