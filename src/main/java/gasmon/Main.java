@@ -36,8 +36,8 @@ public class Main {
 		SNSTopicReceiver topicReceiver = new SNSTopicReceiver(credentialsProvider);
 		
 		ArrayList<SensorPoint> readings = getReadingsInGraphFormat(sensors);
-		ArrayList<SensorPoint> estimate = matchConeToFindSource(readings);
-		GraphRenderer graphRenderer = new GraphRenderer(readings, estimate);
+		ArrayList<SensorPoint> estimates = setupGuesses();
+		GraphRenderer graphRenderer = new GraphRenderer(readings, estimates);
 		
 		//request and handle messages from sqs, associating readings with known scanners
 		for (int i = 0; i < NUMBER_OF_SCANS; i++) {
@@ -45,9 +45,9 @@ public class Main {
 			addReadingsToSensors(sensors, messages);
 //			writeAllReadingsToCSV(sensors);
 			readings = getReadingsInGraphFormat(sensors);
-			estimate = matchConeToFindSource(readings);
-			graphRenderer.updateValues(readings, estimate);
-			System.out.println(getMeanEstimate(estimate).getPosAsString());
+			estimates = matchConeToFindSource(readings, estimates);
+			graphRenderer.updateValues(readings, estimates);
+			System.out.println(getMeanEstimate(estimates).getPosAsString());
 			System.out.println("Scanning " + ((i+1)*100/NUMBER_OF_SCANS) + "%");
 		}
 		topicReceiver.deleteQueue();
@@ -125,9 +125,19 @@ public class Main {
 		return readings;
 	}
 	
-	private static ArrayList<SensorPoint> matchConeToFindSource(ArrayList<SensorPoint> readings) {
+	private static ArrayList<SensorPoint> setupGuesses() {
+		ArrayList<SensorPoint> initialGuesses = new ArrayList<SensorPoint>();
+		
+		for (int i = 0; i < 1000; i += GRANULARITY_OF_GUESS) {
+			for (int j = 0; j < 1000; j += GRANULARITY_OF_GUESS) {
+				initialGuesses.add(new SensorPoint(i, j, 0));
+			}
+		}
+		return initialGuesses;
+	}
+	
+	private static ArrayList<SensorPoint> matchConeToFindSource(ArrayList<SensorPoint> readings, ArrayList<SensorPoint> previousEstimates) {
 		ArrayList<SensorPoint> validGuesses = new ArrayList<SensorPoint>();
-		SensorPoint guess = new SensorPoint(0, 0, 0);
 		
 		TreeMap<Double, SensorPoint> sortedByValues = new TreeMap<Double, SensorPoint>();
 		for (SensorPoint s : readings) {
@@ -136,16 +146,11 @@ public class Main {
 			}
 		}
 		
-		for (int i = 0; i < 1000; i += GRANULARITY_OF_GUESS) {
-			for (int j = 0; j < 1000; j += GRANULARITY_OF_GUESS) {
-				guess.x = i;
-				guess.y = j;
-				if (isValidGuess(guess, sortedByValues)) {
-					validGuesses.add(new SensorPoint(i, j, 0));
-				}
+		for (SensorPoint previousGuess : previousEstimates) {
+			if (isValidGuess(previousGuess, sortedByValues)) {
+				validGuesses.add(previousGuess);
 			}
 		}
-				
 		return validGuesses;
 	}
 	
