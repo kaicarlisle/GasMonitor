@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
+import com.amazonaws.services.sqs.model.QueueDoesNotExistException;
 
 import gasmon.Parsing.*;
 import gasmon.Graphics.*;
@@ -27,7 +28,16 @@ public class GasMonMain {
 	
 	public GasMonMain(int ns, int gg, int nm, int h, int gs) {
 		NUMBER_OF_SCANS = ns;
-		THREAD_SLEEP_BETWEEN_REQUESTS = 2500;
+		THREAD_SLEEP_BETWEEN_REQUESTS = 1000;
+		GRANULARITY_OF_GUESS = gg;
+		NUMBER_OF_MESSAGES_PER_REQUEST = nm;
+		HAMMING_DISTANCE_THRESHHOLD = h;
+		GUESS_STRIKES = gs;
+	}
+	
+	public void updateParameters(int ns, int gg, int nm, int h, int gs) {
+		NUMBER_OF_SCANS = ns;
+		THREAD_SLEEP_BETWEEN_REQUESTS = 1000;
 		GRANULARITY_OF_GUESS = gg;
 		NUMBER_OF_MESSAGES_PER_REQUEST = nm;
 		HAMMING_DISTANCE_THRESHHOLD = h;
@@ -56,15 +66,23 @@ public class GasMonMain {
 		
 		//request and handle messages from sqs, associating readings with known scanners
 		for (int i = 0; i < NUMBER_OF_SCANS; i++) {
-			List<Message> messages = receiveNextMessages(topicReceiver, sensors, parsedMessages);
-			addReadingsToSensors(sensors, messages);
+			try {
+				List<Message> messages = receiveNextMessages(topicReceiver, sensors, parsedMessages);
+				addReadingsToSensors(sensors, messages);
+			} catch (QueueDoesNotExistException e) {
+				continue;
+			}
 			readings = getReadingsInGraphFormat(sensors);
 			estimates = matchConeToFindSource(readings, estimates);
 			meanEstimate = getMeanEstimate(estimates);
 //			graphRenderer.updateValues(readings, estimates, meanEstimate);
 //			System.out.println("Scanning " + ((i+1)*100/NUMBER_OF_SCANS) + "%");
 		}
-		topicReceiver.deleteQueue();
+		try {
+			topicReceiver.deleteQueue();
+		} catch (QueueDoesNotExistException e) {
+			e.printStackTrace();
+		}
 //		System.out.println("Program terminated successfully");
 		System.out.println("Final estimate: " + meanEstimate.getPosAsString());
 		return new Point(meanEstimate.x, meanEstimate.y);

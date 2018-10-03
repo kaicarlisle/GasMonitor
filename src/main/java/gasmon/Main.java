@@ -2,16 +2,15 @@ package gasmon;
 
 import java.awt.Point;
 import java.util.Random;
-import java.util.TreeMap;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.File;
 
 public class Main {
 	
-	private final static Point GOAL = new Point(569, 51);
-	private final static int NUMBER_OF_GENERATIONS = 10;
-	private final static int NUMBER_OF_CHILDREN_PER_GENERATION = 2;
+	private final static Point GOAL = new Point(177, 984);
+	private final static int NUMBER_OF_GENERATIONS = 4;
+	private final static int NUMBER_OF_CHILDREN_PER_GENERATION = 5;
 	private final static double MUTATE_CHANCE = 0.1;
 	
 	private final static int MAX_NUMBER_OF_SCANS = 100;
@@ -24,52 +23,46 @@ public class Main {
 	private final static int MIN_HAMMING_DISTANCE_THRESHHOLD = 1;
 	private final static int MAX_GUESS_STRIKES = 20;
 	private final static int MIN_GUESS_STRIKES = 0;
-	
-	//TODO
-	//mutate x
-	//crossover
-	//select x
 
 	public static void main(String[] args) throws IOException {
-		GasMonMain program;
-		
-		TreeMap<Double, Integer[]> generationData = new TreeMap<Double, Integer[]>();
 		Integer[] initialArgs = {20, 10, 1, 20, 0};
+		
 		Integer[] bestArgs = initialArgs;
 		Point bestEstimate = new Point(0, 0);
 		double bestFitness = 0;
 		log(bestArgs);
 		
-		//for each generation
+		GasMonMain program = new GasMonMain(initialArgs[0], initialArgs[1], initialArgs[2], initialArgs[3], initialArgs[4]);
+
 		for  (int i = 0; i < NUMBER_OF_GENERATIONS; i++) {
 			System.out.println("\nStarted generation " + i);
 			//get the best from previous generation
-			generationData = new TreeMap<Double, Integer[]>();
-			generationData.put(bestFitness, bestArgs);
-			
+			boolean updatedEstimate = false;
 			initialArgs = bestArgs;
 			
-			//mutate
 			for (int j = 0; j < NUMBER_OF_CHILDREN_PER_GENERATION; j++) {
 				System.out.println("Started run " + j);
-				Integer[] gasMonArgs = mutate(initialArgs);
-				program = new GasMonMain(gasMonArgs[0], gasMonArgs[1], gasMonArgs[2], gasMonArgs[3], gasMonArgs[4]);
+				Integer[] thisArgs = mutate(initialArgs);
+				program.updateParameters(thisArgs[0], thisArgs[1], thisArgs[2], thisArgs[3], thisArgs[4]);
 				try {
-					Point estimate = program.execute();
-					double fitness = getFitness(estimate);
-					if (fitness > generationData.lastKey()) {
-						bestEstimate = estimate;
+					Point thisEstimate = program.execute();
+					log(thisArgs, thisEstimate);
+					double thisFitness = getFitness(thisEstimate);
+					if (thisFitness > bestFitness) {
+						bestEstimate = thisEstimate;
+						bestFitness = thisFitness;
+						bestArgs = thisArgs;
+						updatedEstimate = true;
 					}
-					generationData.put(fitness, gasMonArgs);
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
 			}
-			
-			bestArgs = generationData.get(generationData.lastKey());
-			bestFitness = generationData.lastKey();
+
 			log(bestEstimate);
-			log(bestArgs);
+			if (updatedEstimate) {
+				log(bestArgs);
+			}
 		}
 		
 		System.out.println("Check log for results?");
@@ -89,6 +82,18 @@ public class Main {
 	private static void log(Point estimate) throws IOException {
 		FileWriter fileWriter = new FileWriter(new File("src/main/resources/GA-results.txt"), true);
 		fileWriter.write("\nEstimate: (" + estimate.getX() + "," + estimate.getY() + ")");
+		fileWriter.close();
+	}
+	
+	private static void log(Integer[] args, Point estimate) throws IOException {
+		FileWriter fileWriter = new FileWriter(new File("src/main/resources/GA-every-run.txt"), true);
+		fileWriter.write("\nEstimate: (" + estimate.getX() + "," + estimate.getY() + ")");
+		fileWriter.write("\nNUMBER_OF_SCANS: " + args[0]);
+		fileWriter.write("\nGRANULARITY_OF_GUESS: " + args[1]);
+		fileWriter.write("\nNUMBER_OF_MESSAGES_PER_REQUEST: " + args[2]);
+		fileWriter.write("\nHAMMING_DISTANCE_THRESHHOLD: " + args[3]);
+		fileWriter.write("\nGUESS_STRIKES: " + args[4]);
+		fileWriter.write("\n----------------");
 		fileWriter.close();
 	}
 	
