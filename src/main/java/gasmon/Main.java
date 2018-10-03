@@ -9,8 +9,8 @@ import java.io.File;
 public class Main {
 	
 	private final static Point GOAL = new Point(177, 984);
-	private final static int NUMBER_OF_GENERATIONS = 4;
-	private final static int NUMBER_OF_CHILDREN_PER_GENERATION = 5;
+	private final static int NUMBER_OF_GENERATIONS = 10;
+	private final static int NUMBER_OF_CHILDREN_PER_GENERATION = 10;
 	private final static double MUTATE_CHANCE = 0.1;
 	
 	private final static int MAX_NUMBER_OF_SCANS = 100;
@@ -24,7 +24,17 @@ public class Main {
 	private final static int MAX_GUESS_STRIKES = 20;
 	private final static int MIN_GUESS_STRIKES = 0;
 
-	public static void main(String[] args) throws IOException {
+	public static void main(String[] args) throws IOException, InterruptedException {
+//		runGraphic();
+		runGA();
+	}
+	
+	private static void runGraphic() throws InterruptedException {
+		GasMonMain program = new GasMonMain(70, 5, 6, 14, 15);
+		program.execute(true);
+	}
+	
+	private static void runGA() throws IOException {
 		Integer[] initialArgs = {20, 10, 1, 20, 0};
 		
 		Integer[] bestArgs = initialArgs;
@@ -45,7 +55,7 @@ public class Main {
 				Integer[] thisArgs = mutate(initialArgs);
 				program.updateParameters(thisArgs[0], thisArgs[1], thisArgs[2], thisArgs[3], thisArgs[4]);
 				try {
-					Point thisEstimate = program.execute();
+					Point thisEstimate = program.execute(false);
 					log(thisArgs, thisEstimate);
 					double thisFitness = getFitness(thisEstimate);
 					if (thisFitness > bestFitness) {
@@ -65,7 +75,7 @@ public class Main {
 			}
 		}
 		
-		System.out.println("Check log for results?");
+		System.out.println("Program FINISHED\nCheck log for results");
 	}
 	
 	private static void log(Integer[] bestArgs) throws IOException {

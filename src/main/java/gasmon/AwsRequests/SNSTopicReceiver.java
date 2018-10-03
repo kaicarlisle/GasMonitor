@@ -12,6 +12,7 @@ import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
 import com.amazonaws.services.sqs.model.CreateQueueRequest;
 import com.amazonaws.services.sqs.model.Message;
+import com.amazonaws.services.sqs.model.QueueDoesNotExistException;
 import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
 
 import gasmon.*;
@@ -54,7 +55,7 @@ public class SNSTopicReceiver {
 		return messageBodies;
 	}
 	
-	public void deleteQueue() {
+	public void deleteQueue() throws QueueDoesNotExistException {
 		this.sqs.deleteQueue(this.myQueueUrl);
 	}
 }

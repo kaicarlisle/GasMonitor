@@ -60,8 +60,8 @@ public class GraphRenderer extends JPanel {
 //			g2.drawString(p.getValueAsString(), x1-10, y1);
 		}
 		
-		g2.setColor(Color.RED);
 		for (SensorPoint s : estimate) {
+			g2.setColor(s.colour);
 			int x1 = (int) (s.x * getWidth() / MAX_POINT_POS_X);
 			int y1 = (int) (s.y * getHeight() / MAX_POINT_POS_Y);
 			g2.drawRect(x1 - 1, y1 - 1, 2, 2);

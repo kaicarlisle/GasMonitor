@@ -41,6 +41,14 @@ public class SensorPoint {
 		this.colour = new Color(red, green, 0, 80);
 	}
 	
+	public void setAlpha(int maxStrikes) {
+		if (maxStrikes > 0) {
+			this.colour = new Color(255, 0, 0, 255 - (this.strikes*255)/maxStrikes);
+		} else {
+			this.colour = new Color(255, 0, 0, 255);
+		}
+	}
+	
 	public String getValueAsString() {
 		return String.format("%.2f", this.value);
 	}

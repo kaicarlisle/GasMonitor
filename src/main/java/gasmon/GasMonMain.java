@@ -44,7 +44,7 @@ public class GasMonMain {
 		GUESS_STRIKES = gs;
 	}
 	
-	public Point execute() throws InterruptedException {
+	public Point execute(boolean displayGraphics) throws InterruptedException {
 		ProfileCredentialsProvider credentialsProvider = new ProfileCredentialsProvider(".aws/credentials", "default");
 		Sensor[] sensors = new Sensor[0];
 		
@@ -62,7 +62,10 @@ public class GasMonMain {
 		ArrayList<SensorPoint> readings = getReadingsInGraphFormat(sensors);
 		ArrayList<SensorPoint> estimates = setupGuesses();
 		SensorPoint meanEstimate = getMeanEstimate(estimates);
-//		GraphRenderer graphRenderer = new GraphRenderer(readings, estimates, meanEstimate);
+		GraphRenderer graphRenderer = null;
+		if (displayGraphics) {
+			graphRenderer = new GraphRenderer(readings, estimates, meanEstimate);
+		}
 		
 		//request and handle messages from sqs, associating readings with known scanners
 		for (int i = 0; i < NUMBER_OF_SCANS; i++) {
@@ -75,15 +78,17 @@ public class GasMonMain {
 			readings = getReadingsInGraphFormat(sensors);
 			estimates = matchConeToFindSource(readings, estimates);
 			meanEstimate = getMeanEstimate(estimates);
-//			graphRenderer.updateValues(readings, estimates, meanEstimate);
-//			System.out.println("Scanning " + ((i+1)*100/NUMBER_OF_SCANS) + "%");
+			if (graphRenderer != null) {
+				graphRenderer.updateValues(readings, estimates, meanEstimate);
+				System.out.println("Scanning " + ((i+1)*100/NUMBER_OF_SCANS) + "%");
+			}
 		}
 		try {
 			topicReceiver.deleteQueue();
 		} catch (QueueDoesNotExistException e) {
-			e.printStackTrace();
+			System.out.println("Program failed to complete successfully");
 		}
-//		System.out.println("Program terminated successfully");
+		System.out.println("Program terminated successfully");
 		System.out.println("Final estimate: " + meanEstimate.getPosAsString());
 		return new Point(meanEstimate.x, meanEstimate.y);
 	}
@@ -172,6 +177,7 @@ public class GasMonMain {
 				validGuesses.add(previousGuess);
 				previousGuess.strikes--;
 			}
+			previousGuess.setAlpha(GUESS_STRIKES);
 		}
 		if (validGuesses.size() == 0) {
 			validGuesses = previousEstimates;
