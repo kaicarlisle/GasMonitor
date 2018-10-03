@@ -11,13 +11,21 @@ import java.util.stream.Stream;
 
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 
-import gasmon.MessageResponse.Message;
+import gasmon.Parsing.*;
+import gasmon.Graphics.*;
+import gasmon.AwsRequests.*;
+
+// TODO:
+//	refactoring - clean up main
+//  add more error handling
+//  add logging
+//  test with setting two - changing window size and draw settings
 
 public class Main {
 	
-	final static int NUMBER_OF_SCANS = 100;
-	final static int THREAD_SLEEP_BETWEEN_REQUESTS = 500;
-	final static int GRANULARITY_OF_GUESS = 5;
+	final static int NUMBER_OF_SCANS = 50;
+	final static int THREAD_SLEEP_BETWEEN_REQUESTS = 1000;
+	final static int GRANULARITY_OF_GUESS = 1;
 	final static int NUMBER_OF_MESSAGES_PER_REQUEST = 10; //max = 10
 	
 	public static void main(String[] args) throws InterruptedException {
@@ -32,7 +40,7 @@ public class Main {
 		LocationsParser locationsParser = new LocationsParser(locationsJSON);
 		sensors = locationsParser.parse();
 		
-		List<MessageResponse.Message> parsedMessages = new ArrayList<MessageResponse.Message>();
+		List<Message> parsedMessages = new ArrayList<Message>();
 		SNSTopicReceiver topicReceiver = new SNSTopicReceiver(credentialsProvider);
 		
 		ArrayList<SensorPoint> readings = getReadingsInGraphFormat(sensors);
@@ -55,9 +63,9 @@ public class Main {
 		System.out.println("Program terminated succesfully");
 	}
 	
-	private static List<Message> receiveNextMessages(SNSTopicReceiver topicReceiver, Sensor[] sensors, List<MessageResponse.Message> parsedMessages) throws InterruptedException {
+	private static List<Message> receiveNextMessages(SNSTopicReceiver topicReceiver, Sensor[] sensors, List<Message> parsedMessages) throws InterruptedException {
 		MessageParser messageParser = new MessageParser();
-		Stream<MessageResponse.Message> parsedMessageStream;
+		Stream<Message> parsedMessageStream;
 		
 		//make less frequent requests getting more readings at once
 		Thread.sleep(THREAD_SLEEP_BETWEEN_REQUESTS);
@@ -82,10 +90,10 @@ public class Main {
 	}
 	
 	private static void addReadingsToSensors(Sensor[] sensors, List<Message> messages) {
-		//add each MessageResponse.Message object to the relevant sensor object
+		//add each Message object to the relevant sensor object
 		for (Sensor s : sensors) {
 			s.clearReadings();
-			for (MessageResponse.Message m : messages) {
+			for (Message m : messages) {
 				if (s.getID().equals(m.locationId)) {
 					s.addReading(m);
 				}
@@ -93,20 +101,20 @@ public class Main {
 		}
 	}
 	
-	private static void writeAllReadingsToCSV(Sensor[] sensors) {
-		for (Sensor s : sensors) {
-			File file = new File("src/main/resources/readings/"+s.humanReadableName+".csv");
-			String[] header = {"Timestamps", "Readings"};
-			String[] position = {String.valueOf(s.x), String.valueOf(s.y)};
-			CsvWriter writer = new CsvWriter(file, position);
-			writer.writeNextLine(header);
-			for (MessageResponse.Message m : s.getReadings()) {
-				String[] line = {String.valueOf(m.getTimestampFromLong()), String.valueOf(m.value)};
-				writer.writeNextLine(line);
-			}
-			writer.closeWriter();
-		}
-	}
+//	private static void writeAllReadingsToCSV(Sensor[] sensors) {
+//		for (Sensor s : sensors) {
+//			File file = new File("src/main/resources/readings/"+s.humanReadableName+".csv");
+//			String[] header = {"Timestamps", "Readings"};
+//			String[] position = {String.valueOf(s.x), String.valueOf(s.y)};
+//			CsvWriter writer = new CsvWriter(file, position);
+//			writer.writeNextLine(header);
+//			for (Message m : s.getReadings()) {
+//				String[] line = {String.valueOf(m.getTimestampFromLong()), String.valueOf(m.value)};
+//				writer.writeNextLine(line);
+//			}
+//			writer.closeWriter();
+//		}
+//	}
 	
 	private static ArrayList<SensorPoint> getReadingsInGraphFormat(Sensor[] sensors) {
 		ArrayList<SensorPoint> readings = new ArrayList<SensorPoint>();
@@ -150,11 +158,14 @@ public class Main {
 		for (SensorPoint previousGuess : previousEstimates) {
 			if (isValidGuess(previousGuess, sortedByValues)) {
 				validGuesses.add(previousGuess);
+			} else if (previousGuess.strikes > 0) {
+				validGuesses.add(previousGuess);
+				previousGuess.strikes--;
 			}
 		}
 		return validGuesses;
 	}
-	
+
 	private static boolean isValidGuess(SensorPoint guess, TreeMap<Double, SensorPoint> sortedByValues) {
 		TreeMap<Double, SensorPoint> distances = new TreeMap<Double, SensorPoint>();
 		
@@ -163,13 +174,28 @@ public class Main {
 			distances.put(distance, s);
 		}
 		
+		//if distance sorted is very similar in order to values reverse sorted
+		//this is a valid guess (hamming distance)
+		//number of sensorpoints that are out of place
+		
+//		for (Double d : sortedByValues.descendingKeySet()) {
+//			SensorPoint highestValue = sortedByValues.get(d);
+//			if (distances.size() > 0) {
+//				SensorPoint lowestDistance = distances.get(distances.firstKey());
+//			}
+//		}
+		
 		for (Double d : sortedByValues.descendingKeySet()) {
 			SensorPoint highestValue = sortedByValues.get(d);
-			SensorPoint lowestDistance = distances.get(distances.firstKey());
-			if (!lowestDistance.equals(highestValue)) {
-				return false;
+			if (distances.size() > 0) {
+				SensorPoint lowestDistance = distances.get(distances.firstKey());
+				if (!lowestDistance.equals(highestValue)) {
+					return false;
+				}
+				distances.remove(distances.firstKey());
+			} else {
+				System.out.println("no valid guesses");
 			}
-			distances.remove(distances.firstKey());
 		}
 		
 		return true;
@@ -178,12 +204,14 @@ public class Main {
 	private static SensorPoint getMeanEstimate(ArrayList<SensorPoint> validGuesses) {
 		int mX = 0;
 		int mY = 0;
-		for (SensorPoint s : validGuesses) {
-			mX += s.x;
-			mY += s.y;
+		if (validGuesses.size() > 0) {
+			for (SensorPoint s : validGuesses) {
+				mX += s.x;
+				mY += s.y;
+			}
+			mX /= validGuesses.size();
+			mY /= validGuesses.size();
 		}
-		mX /= validGuesses.size();
-		mY /= validGuesses.size();
 		
 		return new SensorPoint(mX, mY, 0);
 	}

@@ -3,17 +3,17 @@ package gasmon;
 import java.io.IOException;
 import java.util.ArrayList;
 
-import gasmon.MessageResponse.Message;
+import gasmon.AwsRequests.Message;
 
 public class Sensor {
 	public String humanReadableName;
 	public double x;
 	public double y;
 	private String id;
-	private ArrayList<MessageResponse.Message> readings;
+	private ArrayList<Message> readings;
 	
 	public Sensor() throws IOException {
-		this.readings = new ArrayList<MessageResponse.Message>();
+		this.readings = new ArrayList<Message>();
 		this.humanReadableName = new ReadableUUID(3).UUID;
 	}
 	
@@ -43,7 +43,7 @@ public class Sensor {
 		return this.id;
 	}
 	
-	public void addReading(MessageResponse.Message reading) {
+	public void addReading(Message reading) {
 		this.readings.add(reading);
 	}
 	
@@ -58,7 +58,7 @@ public class Sensor {
 	public double getAverage() {
 		double total = 0;
 		int count = 0;
-		for (MessageResponse.Message m : this.readings) {
+		for (Message m : this.readings) {
 			total += m.value;
 			count += 1;
 		}
