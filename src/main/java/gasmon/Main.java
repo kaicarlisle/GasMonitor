@@ -8,7 +8,7 @@ import java.io.File;
 
 public class Main {
 	
-	private final static Point GOAL = new Point(173, 374);
+	private final static Point GOAL = new Point(925, 989);
 	private final static int NUMBER_OF_GENERATIONS = 10;
 	private final static int NUMBER_OF_CHILDREN_PER_GENERATION = 10;
 	private final static double MUTATE_CHANCE = 0.1;
@@ -30,7 +30,7 @@ public class Main {
 	}
 	
 	private static void runGraphic() throws InterruptedException {
-		GasMonMain program = new GasMonMain(70, 5, 6, 14, 15);
+		GasMonMain program = new GasMonMain(50, 1, 10, 14, 0);
 		program.execute(true);
 	}
 	

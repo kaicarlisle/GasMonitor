@@ -1,7 +1,7 @@
 package gasmon.AwsRequests;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.regions.Regions;
@@ -27,14 +27,12 @@ public class SNSTopicReceiver {
 	private AmazonSQS sqs;
 	private String myQueueUrl;
 	private List<Message> messages;
-	private ArrayList<String> messageBodies;
 	
 	public SNSTopicReceiver(ProfileCredentialsProvider credentialsProvider) {
 		this.sns = AmazonSNSClientBuilder.standard().withRegion(Regions.EU_WEST_1).withCredentials(credentialsProvider).build();
 		this.sqs = AmazonSQSClientBuilder.standard().withRegion(Regions.EU_WEST_1).withCredentials(credentialsProvider).build();
 	
 		this.myQueueUrl = this.sqs.createQueue(new CreateQueueRequest(new ReadableUUID(3).UUID)).getQueueUrl();
-
 		
 		//subscribe the sqs to the sns
 		Topics.subscribeQueue(this.sns, this.sqs, this.ARN, this.myQueueUrl);
@@ -42,17 +40,9 @@ public class SNSTopicReceiver {
 	
 	public List<String> getNextMessages(int number) {
 		this.messages = this.sqs.receiveMessage(new ReceiveMessageRequest(this.myQueueUrl).withMaxNumberOfMessages(number)).getMessages();
-		if (this.messageBodies != null) {
-			this.messageBodies.clear();
-		} else {
-			this.messageBodies = new ArrayList<String>();
-		}
-		
-		for (Message message : messages) {
-			this.sqs.deleteMessage(this.myQueueUrl, message.getReceiptHandle());
-		    this.messageBodies.add(message.getBody());
-		}
-		return messageBodies;
+
+		this.messages.forEach(entry -> this.sqs.deleteMessage(this.myQueueUrl, entry.getReceiptHandle()));
+		return this.messages.stream().map(entry -> entry.getBody()).collect(Collectors.toList());
 	}
 	
 	public void deleteQueue() throws QueueDoesNotExistException {

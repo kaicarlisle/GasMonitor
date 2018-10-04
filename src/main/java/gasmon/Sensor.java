@@ -2,6 +2,7 @@ package gasmon;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 
 import gasmon.AwsRequests.Message;
 
@@ -10,7 +11,7 @@ public class Sensor {
 	public double x;
 	public double y;
 	private String id;
-	private ArrayList<Message> readings;
+	public List<Message> readings;
 	
 	public Sensor() throws IOException {
 		this.readings = new ArrayList<Message>();
@@ -43,26 +44,14 @@ public class Sensor {
 		return this.id;
 	}
 	
-	public void addReading(Message reading) {
-		this.readings.add(reading);
-	}
-	
-	public void clearReadings() {
-		this.readings.clear();
-	}
-	
-	public ArrayList<Message> getReadings() {
-		return this.readings;
-	}
-	
 	public double getAverage() {
 		double total = 0;
-		int count = 0;
-		for (Message m : this.readings) {
+		
+		for (Message m : this.readings) { 
 			total += m.value;
-			count += 1;
 		}
-		return total / count;
+
+		return this.readings.size() > 0 ? total / this.readings.size() : Double.NaN;
 	}
 
 }

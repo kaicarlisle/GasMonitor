@@ -8,7 +8,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.services.sqs.model.QueueDoesNotExistException;
@@ -37,7 +36,7 @@ public class GasMonMain {
 	
 	public void updateParameters(int ns, int gg, int nm, int h, int gs) {
 		NUMBER_OF_SCANS = ns;
-		THREAD_SLEEP_BETWEEN_REQUESTS = 1000;
+		THREAD_SLEEP_BETWEEN_REQUESTS = 200;
 		GRANULARITY_OF_GUESS = gg;
 		NUMBER_OF_MESSAGES_PER_REQUEST = nm;
 		HAMMING_DISTANCE_THRESHHOLD = h;
@@ -54,8 +53,7 @@ public class GasMonMain {
 		//parse locations.json into Sensors[]
 		Sensor[] sensors = new LocationsParser(locationsJSON).parse();
 		
-		List<Message> parsedMessages = new ArrayList<Message>();
-		ArrayList<SensorPoint> readings = getReadingsInGraphFormat(sensors);
+		ArrayList<SensorPoint> readings = getAverageReadingsAsSensorPoints(sensors);
 		ArrayList<SensorPoint> estimates = setupGuesses();
 		SensorPoint meanEstimate = getMeanEstimate(estimates);
 		
@@ -66,13 +64,15 @@ public class GasMonMain {
 		
 		//request and handle messages from sqs, associating readings with known scanners
 		for (int i = 0; i < NUMBER_OF_SCANS; i++) {
-			try {
-				List<Message> messages = receiveNextMessages(topicReceiver, sensors, parsedMessages);
-				addReadingsToSensors(sensors, messages);
-			} catch (QueueDoesNotExistException e) {
-				continue;
-			}
-			readings = getReadingsInGraphFormat(sensors);
+			//sleep between getting requests
+			Thread.sleep(THREAD_SLEEP_BETWEEN_REQUESTS);
+			
+			List<String> messageBodies = topicReceiver.getNextMessages(NUMBER_OF_MESSAGES_PER_REQUEST);
+			List<Message> messages = parseMessages(messageBodies);
+			addReadingsToSensors(sensors, messages);
+			filterMessages(sensors);
+			
+			readings = getAverageReadingsAsSensorPoints(sensors);
 			estimates = matchConeToFindSource(readings, estimates);
 			meanEstimate = getMeanEstimate(estimates);
 			if (graphRenderer != null) {
@@ -85,50 +85,42 @@ public class GasMonMain {
 			System.out.println("Program terminated successfully");
 			System.out.println("Final estimate: " + meanEstimate.getPosAsString());
 		} catch (QueueDoesNotExistException e) {
-			System.out.println("Program failed to complete successfully");
+			System.out.println("Program failed to complete successfully - Queue does not exist exception");
 		}
 		return new Point(meanEstimate.x, meanEstimate.y);
 	}
 	
-	private static List<Message> receiveNextMessages(SNSTopicReceiver topicReceiver, Sensor[] sensors, List<Message> parsedMessages) throws InterruptedException {
+	private static List<Message> parseMessages(List<String> messages) {
 		MessageParser messageParser = new MessageParser();
-		Stream<Message> parsedMessageStream;
-		
-		//make less frequent requests getting more readings at once
-		Thread.sleep(THREAD_SLEEP_BETWEEN_REQUESTS);
-		List<String> messages = topicReceiver.getNextMessages(NUMBER_OF_MESSAGES_PER_REQUEST);
-		
-		//parse messages into MessageResponse objects
-		for (String message : messages) {
-			parsedMessages.add(messageParser.parse(message).messageBody);
-		}
-		
-		parsedMessageStream = parsedMessages.stream();
-		//filter stream to:
-		//	only include messages from the past 5 minutes
-		//  only include distinct readings (based on eventID)
-		Date now = new Date();
-		Timestamp nowTimestamp = new Timestamp(now.getTime() - 300000);
-		parsedMessages = parsedMessageStream.filter(message -> (message.getTimestampFromLong().after(nowTimestamp)))
-						   					.distinct()
-						   					.collect(Collectors.toList());
-		
-		return parsedMessages;
+		return messages.stream()
+					   .map(entry -> messageParser.parse(entry).messageBody)
+					   .collect(Collectors.toList());
 	}
 	
 	private static void addReadingsToSensors(Sensor[] sensors, List<Message> messages) {
 		//add each Message object to the relevant sensor object
 		for (Sensor s : sensors) {
-			s.clearReadings();
-			for (Message m : messages) {
-				if (s.getID().equals(m.locationId)) {
-					s.addReading(m);
-				}
-			}
+			s.readings.addAll(messages.stream()
+								 	  .filter(entry -> s.getID().equals(entry.locationId))
+								 	  .collect(Collectors.toList()));
+		}
+	}
+	private static void filterMessages(Sensor[] sensors) {
+		for (Sensor s : sensors) {
+			//filter sensor readings to:
+			//	only include messages from the past 5 minutes
+			//  only include distinct readings (based on eventID)
+			Date now = new Date();
+			Timestamp nowTimestamp = new Timestamp(now.getTime() - 300000);
+			
+			s.readings = s.readings.stream()
+					  			   .filter(message -> (message.getTimestampFromLong().after(nowTimestamp)))
+					  			   .distinct()
+					  			   .collect(Collectors.toList());
 		}
 	}
 	
-	private static ArrayList<SensorPoint> getReadingsInGraphFormat(Sensor[] sensors) {
+	private static ArrayList<SensorPoint> getAverageReadingsAsSensorPoints(Sensor[] sensors) {
 		ArrayList<SensorPoint> readings = new ArrayList<SensorPoint>();
 		double max = 0;
 		double average;
@@ -213,14 +205,13 @@ public class GasMonMain {
 	private static SensorPoint getMeanEstimate(ArrayList<SensorPoint> validGuesses) {
 		int mX = 0;
 		int mY = 0;
-		if (validGuesses.size() > 0) {
-			for (SensorPoint s : validGuesses) {
-				mX += s.x;
-				mY += s.y;
-			}
-			mX /= validGuesses.size();
-			mY /= validGuesses.size();
+		
+		for (SensorPoint s : validGuesses) {
+			mX += s.x;
+			mY += s.y;
 		}
+		mX /= validGuesses.size();
+		mY /= validGuesses.size();
 		
 		return new SensorPoint(mX, mY, 0, GUESS_STRIKES);
 	}
