@@ -25,8 +25,8 @@ public class Main {
 	private final static int MIN_GUESS_STRIKES = 0;
 
 	public static void main(String[] args) throws IOException, InterruptedException {
-		runGraphic();
-//		runGA();
+//		runGraphic();
+		runGA();
 	}
 	
 	private static void runGraphic() throws InterruptedException {
@@ -35,7 +35,7 @@ public class Main {
 	}
 	
 	private static void runGA() throws IOException {
-		Integer[] initialArgs = {20, 10, 1, 20, 0};
+		Integer[] initialArgs = {41, 1, 1, 20, 14};
 		
 		Integer[] bestArgs = initialArgs;
 		Point bestEstimate = new Point(0, 0);
@@ -108,23 +108,24 @@ public class Main {
 	}
 	
 	private static Integer[] mutate(Integer[] args) {
+		Integer[] newArgs = {args[0], args[1], args[2], args[3], args[4]};
 		Random r = new Random();
 		if (r.nextFloat() < MUTATE_CHANCE) {
-			args[0] = r.nextInt(MAX_NUMBER_OF_SCANS - MIN_NUMBER_OF_SCANS) + MIN_NUMBER_OF_SCANS;
+			newArgs[0] = r.nextInt(MAX_NUMBER_OF_SCANS - MIN_NUMBER_OF_SCANS) + MIN_NUMBER_OF_SCANS;
 		}
 		if (r.nextFloat() < MUTATE_CHANCE) {
-			args[1] = r.nextInt(MAX_GRANULARITY_OF_GUESS - MIN_GRANULARITY_OF_GUESS) + MIN_GRANULARITY_OF_GUESS;
+			newArgs[1] = r.nextInt(MAX_GRANULARITY_OF_GUESS - MIN_GRANULARITY_OF_GUESS) + MIN_GRANULARITY_OF_GUESS;
 		}
 		if (r.nextFloat() < MUTATE_CHANCE) {
-			args[2] = r.nextInt(MAX_NUMBER_OF_MESSAGES_PER_REQUEST - MIN_NUMBER_OF_MESSAGES_PER_REQUEST) + MIN_NUMBER_OF_MESSAGES_PER_REQUEST;
+			newArgs[2] = r.nextInt(MAX_NUMBER_OF_MESSAGES_PER_REQUEST - MIN_NUMBER_OF_MESSAGES_PER_REQUEST) + MIN_NUMBER_OF_MESSAGES_PER_REQUEST;
 		}
 		if (r.nextFloat() < MUTATE_CHANCE) {
-			args[3] = r.nextInt(MAX_HAMMING_DISTANCE_THRESHHOLD - MIN_HAMMING_DISTANCE_THRESHHOLD) + MIN_HAMMING_DISTANCE_THRESHHOLD;
+			newArgs[3] = r.nextInt(MAX_HAMMING_DISTANCE_THRESHHOLD - MIN_HAMMING_DISTANCE_THRESHHOLD) + MIN_HAMMING_DISTANCE_THRESHHOLD;
 		}
 		if (r.nextFloat() < MUTATE_CHANCE) {
-			args[4] = r.nextInt(MAX_GUESS_STRIKES - MIN_GUESS_STRIKES) + MIN_GUESS_STRIKES;
+			newArgs[4] = r.nextInt(MAX_GUESS_STRIKES - MIN_GUESS_STRIKES) + MIN_GUESS_STRIKES;
 		}
-		return args;
+		return newArgs;
 	}
 	
 	private static double getFitness(Point finalEstimate) {

@@ -10,7 +10,6 @@ import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
-import com.amazonaws.services.sqs.model.QueueDoesNotExistException;
 
 import gasmon.Parsing.*;
 import gasmon.Graphics.*;
@@ -36,7 +35,7 @@ public class GasMonMain {
 	
 	public void updateParameters(int ns, int gg, int nm, int h, int gs) {
 		NUMBER_OF_SCANS = ns;
-		THREAD_SLEEP_BETWEEN_REQUESTS = 200;
+		THREAD_SLEEP_BETWEEN_REQUESTS = 1000;
 		GRANULARITY_OF_GUESS = gg;
 		NUMBER_OF_MESSAGES_PER_REQUEST = nm;
 		HAMMING_DISTANCE_THRESHHOLD = h;
@@ -45,13 +44,14 @@ public class GasMonMain {
 	
 	public Point execute(boolean displayGraphics) throws InterruptedException {
 		ProfileCredentialsProvider credentialsProvider = new ProfileCredentialsProvider(".aws/credentials", "default");
-		SNSTopicReceiver topicReceiver = new SNSTopicReceiver(credentialsProvider);
 		
 		//get locations.json from aws
 		File locationsJSON = new GetLocationsJSONFromAWS(credentialsProvider).getLocationsFile();
 		
 		//parse locations.json into Sensors[]
 		Sensor[] sensors = new LocationsParser(locationsJSON).parse();
+		
+		ArrayList<String> messageBodies = new ArrayList<String>();
 		
 		ArrayList<SensorPoint> readings = getAverageReadingsAsSensorPoints(sensors);
 		ArrayList<SensorPoint> estimates = setupGuesses();
@@ -62,12 +62,30 @@ public class GasMonMain {
 			graphRenderer = new GraphRenderer(readings, estimates, meanEstimate);
 		}
 		
+		
+		GetMessageRequestThread t1 = new GetMessageRequestThread("t1", THREAD_SLEEP_BETWEEN_REQUESTS, credentialsProvider, NUMBER_OF_MESSAGES_PER_REQUEST);
+		t1.start();
+		GetMessageRequestThread t2 = new GetMessageRequestThread("t2", THREAD_SLEEP_BETWEEN_REQUESTS, credentialsProvider, NUMBER_OF_MESSAGES_PER_REQUEST);
+		t2.start();
+		GetMessageRequestThread t3 = new GetMessageRequestThread("t3", THREAD_SLEEP_BETWEEN_REQUESTS, credentialsProvider, NUMBER_OF_MESSAGES_PER_REQUEST);
+		t3.start();
+		GetMessageRequestThread t4 = new GetMessageRequestThread("t4", THREAD_SLEEP_BETWEEN_REQUESTS, credentialsProvider, NUMBER_OF_MESSAGES_PER_REQUEST);
+		t4.start();
+		GetMessageRequestThread t5 = new GetMessageRequestThread("t5", THREAD_SLEEP_BETWEEN_REQUESTS, credentialsProvider, NUMBER_OF_MESSAGES_PER_REQUEST);
+		t5.start();
+		
 		//request and handle messages from sqs, associating readings with known scanners
 		for (int i = 0; i < NUMBER_OF_SCANS; i++) {
-			//sleep between getting requests
-			Thread.sleep(THREAD_SLEEP_BETWEEN_REQUESTS);
+			Thread.sleep(500);
+			//add multithreading to the getting of messages
+			//all readings get pooled into one List<String> messageBodies, to be parsed etc
+			messageBodies.addAll(t1.messages);
+			messageBodies.addAll(t2.messages);
+			messageBodies.addAll(t3.messages);
+			messageBodies.addAll(t4.messages);
+			messageBodies.addAll(t5.messages);
 			
-			List<String> messageBodies = topicReceiver.getNextMessages(NUMBER_OF_MESSAGES_PER_REQUEST);
+			
 			List<Message> messages = parseMessages(messageBodies);
 			addReadingsToSensors(sensors, messages);
 			filterMessages(sensors);
@@ -80,13 +98,14 @@ public class GasMonMain {
 				System.out.println("Scanning " + ((i+1)*100/NUMBER_OF_SCANS) + "%");
 			}
 		}
-		try {
-			topicReceiver.deleteQueue();
-			System.out.println("Program terminated successfully");
-			System.out.println("Final estimate: " + meanEstimate.getPosAsString());
-		} catch (QueueDoesNotExistException e) {
-			System.out.println("Program failed to complete successfully - Queue does not exist exception");
-		}
+		t1.kill();
+		t2.kill();
+		t3.kill();
+		t4.kill();
+		t5.kill();
+		System.out.println("Program terminated successfully");
+		System.out.println("Final estimate: " + meanEstimate.getPosAsString());
+
 		return new Point(meanEstimate.x, meanEstimate.y);
 	}
 	

@@ -1,5 +1,6 @@
 package gasmon.AwsRequests;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -39,13 +40,21 @@ public class SNSTopicReceiver {
 	}
 	
 	public List<String> getNextMessages(int number) {
-		this.messages = this.sqs.receiveMessage(new ReceiveMessageRequest(this.myQueueUrl).withMaxNumberOfMessages(number)).getMessages();
-
-		this.messages.forEach(entry -> this.sqs.deleteMessage(this.myQueueUrl, entry.getReceiptHandle()));
-		return this.messages.stream().map(entry -> entry.getBody()).collect(Collectors.toList());
+		try {
+			this.messages = this.sqs.receiveMessage(new ReceiveMessageRequest(this.myQueueUrl).withMaxNumberOfMessages(number)).getMessages();
+	
+			this.messages.forEach(entry -> this.sqs.deleteMessage(this.myQueueUrl, entry.getReceiptHandle()));
+			return this.messages.stream().map(entry -> entry.getBody()).collect(Collectors.toList());
+		} catch (QueueDoesNotExistException e) {
+			return new ArrayList<String>();
+		}
 	}
 	
-	public void deleteQueue() throws QueueDoesNotExistException {
-		this.sqs.deleteQueue(this.myQueueUrl);
+	public void deleteQueue() {
+		try {
+			this.sqs.deleteQueue(this.myQueueUrl);
+		} catch (QueueDoesNotExistException e) {
+			
+		}
 	}
 }
