@@ -71,8 +71,6 @@ public class GasMonMain {
 		t3.start();
 		GetMessageRequestThread t4 = new GetMessageRequestThread("t4", THREAD_SLEEP_BETWEEN_REQUESTS, credentialsProvider, NUMBER_OF_MESSAGES_PER_REQUEST);
 		t4.start();
-		GetMessageRequestThread t5 = new GetMessageRequestThread("t5", THREAD_SLEEP_BETWEEN_REQUESTS, credentialsProvider, NUMBER_OF_MESSAGES_PER_REQUEST);
-		t5.start();
 		
 		//request and handle messages from sqs, associating readings with known scanners
 		for (int i = 0; i < NUMBER_OF_SCANS; i++) {
@@ -83,8 +81,6 @@ public class GasMonMain {
 			messageBodies.addAll(t2.messages);
 			messageBodies.addAll(t3.messages);
 			messageBodies.addAll(t4.messages);
-			messageBodies.addAll(t5.messages);
-			
 			
 			List<Message> messages = parseMessages(messageBodies);
 			addReadingsToSensors(sensors, messages);
@@ -102,7 +98,6 @@ public class GasMonMain {
 		t2.kill();
 		t3.kill();
 		t4.kill();
-		t5.kill();
 		System.out.println("Program terminated successfully");
 		System.out.println("Final estimate: " + meanEstimate.getPosAsString());
 
@@ -185,7 +180,7 @@ public class GasMonMain {
 				validGuesses.add(previousGuess);
 				previousGuess.strikes--;
 			}
-			previousGuess.setAlpha(GUESS_STRIKES);
+			previousGuess.setAlpha(previousEstimates.size(), GRANULARITY_OF_GUESS);
 		}
 		if (validGuesses.size() == 0) {
 			validGuesses = previousEstimates;

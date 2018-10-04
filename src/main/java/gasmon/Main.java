@@ -25,12 +25,12 @@ public class Main {
 	private final static int MIN_GUESS_STRIKES = 0;
 
 	public static void main(String[] args) throws IOException, InterruptedException {
-//		runGraphic();
-		runGA();
+		runGraphic();
+//		runGA();
 	}
 	
 	private static void runGraphic() throws InterruptedException {
-		GasMonMain program = new GasMonMain(50, 1, 10, 14, 0);
+		GasMonMain program = new GasMonMain(41, 2, 2, 20, 18);
 		program.execute(true);
 	}
 	
@@ -43,7 +43,8 @@ public class Main {
 		log(bestArgs);
 		
 		GasMonMain program = new GasMonMain(initialArgs[0], initialArgs[1], initialArgs[2], initialArgs[3], initialArgs[4]);
-
+		
+		loop:
 		for  (int i = 0; i < NUMBER_OF_GENERATIONS; i++) {
 			System.out.println("\nStarted generation " + i);
 			//get the best from previous generation
@@ -72,6 +73,10 @@ public class Main {
 			log(bestEstimate);
 			if (updatedEstimate) {
 				log(bestArgs);
+			}
+			if (bestFitness == 1.0) {
+				System.out.println("Found a solution that gets it 100%");
+				break loop;
 			}
 		}
 		

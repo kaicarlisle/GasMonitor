@@ -41,12 +41,15 @@ public class SensorPoint {
 		this.colour = new Color(red, green, 0, 80);
 	}
 	
-	public void setAlpha(int maxStrikes) {
-		if (maxStrikes > 0) {
-			this.colour = new Color(255, 0, 0, 255 - (this.strikes*255)/maxStrikes);
-		} else {
-			this.colour = new Color(255, 0, 0, 255);
-		}
+	public void setAlpha(int numGuesses, int granularity) {
+		double x1 = 0;
+		double x2 = Math.pow(1000/granularity, 2);
+		double y1 = 255;
+		double y2 = 0;
+		
+		double val = y1 + (numGuesses-x1)*(y2-y1)/(x2-x1);
+		this.colour = new Color(255, 0, 0, Math.toIntExact(Math.round(val)));
+		
 	}
 	
 	public String getValueAsString() {
