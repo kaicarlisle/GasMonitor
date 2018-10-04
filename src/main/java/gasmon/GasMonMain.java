@@ -46,22 +46,19 @@ public class GasMonMain {
 	
 	public Point execute(boolean displayGraphics) throws InterruptedException {
 		ProfileCredentialsProvider credentialsProvider = new ProfileCredentialsProvider(".aws/credentials", "default");
-		Sensor[] sensors = new Sensor[0];
-		
-		//get locations.json from aws
-		GetLocationsJSONFromAWS getLocationsFromAWS = new GetLocationsJSONFromAWS(credentialsProvider);
-		File locationsJSON = getLocationsFromAWS.getLocationsFile();
-		
-		//parse locations.json into Sensors[]
-		LocationsParser locationsParser = new LocationsParser(locationsJSON);
-		sensors = locationsParser.parse();
-		
-		List<Message> parsedMessages = new ArrayList<Message>();
 		SNSTopicReceiver topicReceiver = new SNSTopicReceiver(credentialsProvider);
 		
+		//get locations.json from aws
+		File locationsJSON = new GetLocationsJSONFromAWS(credentialsProvider).getLocationsFile();
+		
+		//parse locations.json into Sensors[]
+		Sensor[] sensors = new LocationsParser(locationsJSON).parse();
+		
+		List<Message> parsedMessages = new ArrayList<Message>();
 		ArrayList<SensorPoint> readings = getReadingsInGraphFormat(sensors);
 		ArrayList<SensorPoint> estimates = setupGuesses();
 		SensorPoint meanEstimate = getMeanEstimate(estimates);
+		
 		GraphRenderer graphRenderer = null;
 		if (displayGraphics) {
 			graphRenderer = new GraphRenderer(readings, estimates, meanEstimate);
@@ -85,11 +82,11 @@ public class GasMonMain {
 		}
 		try {
 			topicReceiver.deleteQueue();
+			System.out.println("Program terminated successfully");
+			System.out.println("Final estimate: " + meanEstimate.getPosAsString());
 		} catch (QueueDoesNotExistException e) {
 			System.out.println("Program failed to complete successfully");
 		}
-		System.out.println("Program terminated successfully");
-		System.out.println("Final estimate: " + meanEstimate.getPosAsString());
 		return new Point(meanEstimate.x, meanEstimate.y);
 	}
 	

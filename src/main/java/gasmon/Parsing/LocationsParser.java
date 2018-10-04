@@ -6,6 +6,8 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 
+import com.google.gson.JsonSyntaxException;
+
 import gasmon.Sensor;
 
 public class LocationsParser extends JSONParser {
@@ -29,10 +31,13 @@ public class LocationsParser extends JSONParser {
 			while ((this.line = this.reader.readLine()) != null) {
 				this.jsonString += this.line;
 			}
+			return gson.fromJson(this.jsonString, Sensor[].class);
 		} catch (IOException e) {
 			System.out.println("Error reading locations.json");
 			e.printStackTrace();
+		} catch (JsonSyntaxException e) {
+			System.out.println("Json syntax exception - invalid json in locations.json");
 		}
-		return gson.fromJson(this.jsonString, Sensor[].class);
+		return new Sensor[0];
 	}
 }

@@ -31,36 +31,31 @@ public class GetLocationsJSONFromAWS {
 		this.bucketName = "eventprocessing-rfm-sept-2018-locationss3bucket-186b0uzd6cf01";
 		this.keyName = "locations-part2.json";
 		this.file = new File("src/main/resources/" + this.keyName);
-		
-		if (!this.file.exists()) {
-			getLocations();
-		}
-	}
-	
-	private void getLocations() {
-		this.s3 = AmazonS3ClientBuilder.standard().withRegion(Regions.EU_WEST_1).withCredentials(this.credentialsProvider).build();
-		try {
-		    this.o = this.s3.getObject(this.bucketName, this.keyName);
-		    this.s3is = this.o.getObjectContent();
-		    this.fos = new FileOutputStream(this.file);
-		    this.read_buf = new byte[1024];
-		    this.read_len = 0;
-		    while ((this.read_len = this.s3is.read(this.read_buf)) > 0) {
-		        this.fos.write(this.read_buf, 0, this.read_len);
-		    }
-		    this.s3is.close();
-		    this.fos.close();
-		} catch (AmazonServiceException e) {
-		    e.printStackTrace();
-		} catch (FileNotFoundException e) {
-			System.out.println("File does not exist on aws");
-		    e.printStackTrace();
-		} catch (IOException e) {
-		    e.printStackTrace();
-		}
 	}
 	
 	public File getLocationsFile() {
+		if (!this.file.exists()) {
+			this.s3 = AmazonS3ClientBuilder.standard().withRegion(Regions.EU_WEST_1).withCredentials(this.credentialsProvider).build();
+			try {
+			    this.o = this.s3.getObject(this.bucketName, this.keyName);
+			    this.s3is = this.o.getObjectContent();
+			    this.fos = new FileOutputStream(this.file);
+			    this.read_buf = new byte[1024];
+			    this.read_len = 0;
+			    while ((this.read_len = this.s3is.read(this.read_buf)) > 0) {
+			        this.fos.write(this.read_buf, 0, this.read_len);
+			    }
+			    this.s3is.close();
+			    this.fos.close();
+			} catch (AmazonServiceException e) {
+			    e.printStackTrace();
+			} catch (FileNotFoundException e) {
+				System.out.println("File does not exist on aws");
+			    e.printStackTrace();
+			} catch (IOException e) {
+			    e.printStackTrace();
+			}
+		}
 		return this.file;
 	}
 }

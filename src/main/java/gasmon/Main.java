@@ -8,7 +8,7 @@ import java.io.File;
 
 public class Main {
 	
-	private final static Point GOAL = new Point(177, 984);
+	private final static Point GOAL = new Point(173, 374);
 	private final static int NUMBER_OF_GENERATIONS = 10;
 	private final static int NUMBER_OF_CHILDREN_PER_GENERATION = 10;
 	private final static double MUTATE_CHANCE = 0.1;
@@ -25,8 +25,8 @@ public class Main {
 	private final static int MIN_GUESS_STRIKES = 0;
 
 	public static void main(String[] args) throws IOException, InterruptedException {
-//		runGraphic();
-		runGA();
+		runGraphic();
+//		runGA();
 	}
 	
 	private static void runGraphic() throws InterruptedException {
